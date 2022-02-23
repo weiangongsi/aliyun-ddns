@@ -19,9 +19,13 @@ domain_list: # 域名列表
 pip instsall -r requirements.txt
 ```
 
-运行
+##### 运行
 
 ```
 python ddns.py
 ```
-
+docker
+```
+docker build -t aliyun-ddns .
+docker run -d --name=aliyun-ddns  aliyun-ddns
+```
