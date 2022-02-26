@@ -27,5 +27,5 @@ python ddns.py
 docker
 ```
 docker build -t aliyun-ddns .
-docker run -d --name=aliyun-ddns  aliyun-ddns
+docker run -d --name=aliyun-ddns --restart=always  aliyun-ddns
 ```

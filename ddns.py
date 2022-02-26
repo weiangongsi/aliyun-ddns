@@ -31,7 +31,6 @@ class UpdateDns:
         pro = UpdateDns.get_properties()
         access_key_id = pro['access_key_id']
         access_key_secret = pro['access_key_secret']
-        wait_seconds_time = pro['wait_seconds_time']
         client = UpdateDns.create_client(access_key_id, access_key_secret)
         domain_list = pro['domain_list']
         for domain_item in domain_list:
@@ -68,8 +67,6 @@ class UpdateDns:
                     print(domain_item, '更新结果', result.body)
                 else:
                     print(domain, '记录存在，不需要更新')
-        print('等待', wait_seconds_time, '秒')
-        time.sleep(wait_seconds_time)
 
     @staticmethod
     def get_ip():
@@ -88,4 +85,12 @@ class UpdateDns:
 
 if __name__ == '__main__':
     while True:
-        UpdateDns.main()
+        pro = UpdateDns.get_properties()
+        wait_seconds_time = pro['wait_seconds_time']
+        try:
+            UpdateDns.main()
+        except Exception as e:
+            print('异常', e)
+        finally:
+            print('等待', wait_seconds_time, '秒')
+            time.sleep(wait_seconds_time)

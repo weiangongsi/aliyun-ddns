@@ -2,4 +2,4 @@ FROM python:3.7
 ADD ./ /code
 WORKDIR /code
 RUN pip install -r requirements.txt
-CMD [ "python","/code/ddns.py" ]
+CMD [ "python","-u","/code/ddns.py" ]
