@@ -1,5 +1,5 @@
 #!/usr/bin/python
-
+import threading
 import time
 
 import requests
@@ -8,6 +8,7 @@ from alibabacloud_alidns20150109 import models as alidns_models
 from alibabacloud_alidns20150109.client import Client as AlidnsClient
 from alibabacloud_tea_openapi import models as open_api_models
 from lxml import etree
+from pythonping import ping
 
 
 class UpdateDns:
@@ -83,10 +84,10 @@ class UpdateDns:
             return yaml.full_load(content)
 
 
-if __name__ == '__main__':
+def corn_thread():
+    pro = UpdateDns.get_properties()
+    wait_seconds_time = pro['wait_sync_time']
     while True:
-        pro = UpdateDns.get_properties()
-        wait_seconds_time = pro['wait_seconds_time']
         try:
             UpdateDns.main()
         except Exception as e:
@@ -94,3 +95,30 @@ if __name__ == '__main__':
         finally:
             print('等待', wait_seconds_time, '秒')
             time.sleep(wait_seconds_time)
+
+
+def listen_thread():
+    pro = UpdateDns.get_properties()
+    wait_listen_time = pro['wait_listen_time']
+    socket_state = 1
+    while True:
+        ping_result = ping("8.8.8.8")
+        if "Reply" in str(ping_result):
+            if socket_state == 0:
+                try:
+                    print("网络已重连")
+                    UpdateDns.main()
+                except Exception as e:
+                    print('异常', e)
+            socket_state = 1
+            time.sleep(wait_listen_time)
+        else:
+            print("网络已断开")
+            socket_state = 0
+
+
+if __name__ == '__main__':
+    t1 = threading.Thread(target=corn_thread)
+    t2 = threading.Thread(target=listen_thread)
+    t1.start()
+    t2.start()
