@@ -1,14 +1,13 @@
 #!/usr/bin/python
-import threading
 import time
-
+import logging
 import requests
 import yaml
 from alibabacloud_alidns20150109 import models as alidns_models
 from alibabacloud_alidns20150109.client import Client as AlidnsClient
 from alibabacloud_tea_openapi import models as open_api_models
-from lxml import etree
-from pythonping import ping
+
+logging.basicConfig(level=logging.INFO)
 
 
 class UpdateDns:
@@ -17,108 +16,96 @@ class UpdateDns:
         pass
 
     @staticmethod
-    def create_client(access_key_id: str, access_key_secret: str, ) -> AlidnsClient:
-        config = open_api_models.Config(
-            access_key_id=access_key_id,
-            access_key_secret=access_key_secret
-        )
-        # 访问的域名
-        config.endpoint = f'alidns.cn-hangzhou.aliyuncs.com'
-        return AlidnsClient(config)
-
-    @staticmethod
-    def main() -> None:
-        print('开始执行')
-        pro = UpdateDns.get_properties()
-        access_key_id = pro['access_key_id']
-        access_key_secret = pro['access_key_secret']
-        client = UpdateDns.create_client(access_key_id, access_key_secret)
-        domain_list = pro['domain_list']
-        for domain_item in domain_list:
-            describe_sub_domain_records_request = alidns_models.DescribeSubDomainRecordsRequest()
-            describe_sub_domain_records_request.sub_domain = domain_item['rr'] + '.' + domain_item['domain_name']
-            describe_sub_domain_records_request.type = 'A'
-            # 复制代码运行请自行打印 API 的返回值
-            records = client.describe_sub_domain_records(
-                describe_sub_domain_records_request)
-            body = records.body
-            total_count = body.total_count
-            domain_records = body.domain_records
-            ip = UpdateDns.get_ip()
-            if total_count == 0:
-                print(domain_item, '没有记录，新增记录', ip)
-                add_domain_record_request = alidns_models.AddDomainRecordRequest()
-                add_domain_record_request.domain_name = domain_item['domain_name']
-                add_domain_record_request.rr = domain_item['rr']
-                add_domain_record_request.type = 'A'
-                add_domain_record_request.value = ip
-                result = client.add_domain_record(add_domain_record_request)
-                print(domain_item, '新增结果', result.body)
-            else:
-                domain = domain_records.record[0]
-                value = domain.value
-                if value != ip:
-                    print('记录存在', domain, '，值不同，需要更新', ip)
-                    update_domain_record_request = alidns_models.UpdateDomainRecordRequest()
-                    update_domain_record_request.record_id = domain.record_id
-                    update_domain_record_request.rr = domain_item['rr']
-                    update_domain_record_request.type = 'A'
-                    update_domain_record_request.value = ip
-                    result = client.update_domain_record(update_domain_record_request)
-                    print(domain_item, '更新结果', result.body)
-                else:
-                    print(domain, '记录存在，不需要更新')
-
-    @staticmethod
     def get_ip():
-        html_data = requests.get(
-            'http://www.net.cn/static/customercare/yourip.asp')
-        tree = etree.HTML(html_data.text)
-        ip = tree.xpath('//h2')
-        return ip[0].text.strip()
+        html_data = requests.get("http://api.ipify.org?format=json")
+        return html_data.json()["ip"]
 
     @staticmethod
     def get_properties():
-        with open('properties.yaml', encoding="utf-8") as file:
+        with open("properties.yaml", encoding="utf-8") as file:
             content = file.read()
             return yaml.full_load(content)
 
+    @staticmethod
+    def create_client(
+        access_key_id: str,
+        access_key_secret: str,
+    ) -> AlidnsClient:
+        config = open_api_models.Config(
+            access_key_id=access_key_id, access_key_secret=access_key_secret
+        )
+        config.endpoint = f"alidns.cn-hangzhou.aliyuncs.com"
+        return AlidnsClient(config)
 
-def corn_thread():
+    @staticmethod
+    def add_domain_record(
+        client: AlidnsClient,
+        domain_name: str,
+        rr: str,
+        type: str,
+        value: str,
+    ) -> AlidnsClient:
+        request = alidns_models.AddDomainRecordRequest()
+        request.domain_name = domain_name
+        request.rr = rr
+        request.type = type
+        request.value = value
+        client.add_domain_record(request)
+
+    @staticmethod
+    def update_domain_record(
+        client: AlidnsClient,
+        record_id: str,
+        rr: str,
+        type: str,
+        value: str,
+    ) -> AlidnsClient:
+        request = alidns_models.UpdateDomainRecordRequest()
+        request.record_id = record_id
+        request.rr = rr
+        request.type = type
+        request.value = value
+        client.update_domain_record(request)
+
+
+if __name__ == "__main__":
     pro = UpdateDns.get_properties()
-    wait_seconds_time = pro['wait_sync_time']
+    domain_list = pro["domain_list"]
+    access_key_id = pro["access_key_id"]
+    access_key_secret = pro["access_key_secret"]
+    wait_seconds_time = pro["wait_seconds_time"]
+    client = UpdateDns.create_client(access_key_id, access_key_secret)
     while True:
         try:
-            UpdateDns.main()
+            for domain_item in domain_list:
+                # 参数
+                domain_name = domain_item["domain_name"]
+                rr = domain_item["rr"]
+                type = "A"
+                sub_domain = rr + "." + domain_name
+                # 查询子域名A记录
+                request = alidns_models.DescribeSubDomainRecordsRequest()
+                request.sub_domain = sub_domain
+                request.type = type
+                records = client.describe_sub_domain_records(request)
+                body = records.body
+                total_count = body.total_count
+                domain_records = body.domain_records
+                ip = UpdateDns.get_ip()
+                # 查询结果判断
+                if total_count == 0:
+                    logging.info(sub_domain + ":add_domain_record::" + ip)
+                    UpdateDns.add_domain_record(client, domain_name, rr, type, ip)
+                else:
+                    domain = domain_records.record[0]
+                    value = domain.value
+                    if value != ip:
+                        logging.info(sub_domain + ":update_domain_record::" + ip)
+                        record_id = domain.record_id
+                        UpdateDns.update_domain_record(client, record_id, rr, type, ip)
+                    else:
+                        logging.info(sub_domain + ":no change")
         except Exception as e:
-            print('异常', e)
+            logging.error(e)
         finally:
-            print('等待', wait_seconds_time, '秒')
             time.sleep(wait_seconds_time)
-
-
-def listen_thread():
-    pro = UpdateDns.get_properties()
-    wait_listen_time = pro['wait_listen_time']
-    socket_state = 1
-    while True:
-        ping_result = ping("8.8.8.8")
-        if "Reply" in str(ping_result):
-            if socket_state == 0:
-                try:
-                    print("网络已重连")
-                    UpdateDns.main()
-                except Exception as e:
-                    print('异常', e)
-            socket_state = 1
-            time.sleep(wait_listen_time)
-        else:
-            print("网络已断开")
-            socket_state = 0
-
-
-if __name__ == '__main__':
-    t1 = threading.Thread(target=corn_thread)
-    t2 = threading.Thread(target=listen_thread)
-    t1.start()
-    t2.start()

@@ -1,7 +1,6 @@
-access_key_id: "LTAIPaHC7U***e"
-access_key_secret: "xwnEsyZcjzpJc58hnj0Im****MBN"
-wait_sync_time: 1200
-wait_listen_time: 5
+access_key_id: "LTAIPaHC7****"
+access_key_secret: "xwnEsyZcjzpJc58hnj0Imqe****"
+wait_seconds_time: 30
 domain_list:
-  - rr: home
+  - rr: www
     domain_name: dcssn.com

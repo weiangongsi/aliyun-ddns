@@ -1,12 +1,13 @@
 # 阿里云ddns-python脚本
 
+只支持ipv4，如果有别的需求可以提出来加上。
+
 ##### 配置文件
 
 ```yaml
 access_key_id: "LTAIPa******"
 access_key_secret: "xwnEsyZcjzpJc*******"
-wait_sync_time: 1200 # 多少秒强制同步一次,(强制同步是防止网络闪断又重连后时间太短，ping任务此时阻塞等待下一次ping，检测不到网络变化)
-wait_listen_time: 5 # 多少秒ping一次检测网络是否正常，如果检测到网络断开，就开始实时检测网络状态，网络正常后立即同步
+wait_seconds_time: 30 # 多少秒同步一次，阿里云查询域名解析API配额速率为：300/1(s)，无需担心接口调用次数问题
 domain_list: # 域名列表
   - rr: www # 记录值
     domain_name: dcssn.com # 域名
@@ -14,19 +15,14 @@ domain_list: # 域名列表
     domain_name: dcssn.com
 ```
 
-##### 安装依赖
-
-```
-pip instsall -r requirements.txt
-```
-
 ##### 运行
 
 ```
+pip instsall -r requirements.txt
 python ddns.py
 ```
-docker
+##### docker
 ```
 docker build -t aliyun-ddns .
-docker run -d --name=aliyun-ddns --restart=always  aliyun-ddns
+docker run -d --name=aliyun-ddns  aliyun-ddns
 ```
